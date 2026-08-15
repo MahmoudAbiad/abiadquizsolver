@@ -19,10 +19,13 @@ class ExamSolutionResponse(BaseModel):
     solutions: list[SolvedQuestion]
 
 # قائمة النماذج مرتبة حسب الأولوية (Fallback Cascade)
+# ملاحظة: "gemini-3.7-flash" مش موديل موجود فعلياً عند Google (كان دايماً
+# بيفشل بـ 503 ويطوّل وقت الاستجابة قبل ما يوصل للموديل الشغّال). تم حذفه
+# واستبداله بترتيب موديلات Gemini 3 الفعلية المتوفرة حالياً (آب 2026).
 FALLBACK_MODELS = [
-    "gemini-3.7-flash",       # النموذج الأساسي
-    "gemini-3.6-flash",       # الاحتياطي الأول
-    "gemini-3.5-flash-lite",       # الاحتياطي الثاني
+    "gemini-3.6-flash",       # النموذج الأساسي (الأحدث والأدق)
+    "gemini-3.5-flash",       # الاحتياطي الأول
+    "gemini-3.5-flash-lite",  # الاحتياطي الثاني (الأرخص والأسرع)
 ]
 
 class AIService:

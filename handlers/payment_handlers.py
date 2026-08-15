@@ -26,11 +26,15 @@ async def process_receipt(message: Message, bot: Bot, state: FSMContext):
         receipt_file_id=photo.file_id,
         images_credited=100
     )
+    if not tx.get("$id"):
+        await message.answer("❌ حدث خطأ أثناء تسجيل طلب الشحن، حاول مرة أخرى بعد قليل.")
+        await state.clear()
+        return
     tx_id = tx["$id"]
 
     admin_caption = (
         f"🔔 **طلب شحن رصيد جديد (#{tx_id})**\n\n"
-        f"• المستخدم: {message.from_user.full_name} (@{message.from_user.username})\n"
+        f"• المستخدم: {message.from_user.full_name} (@{message.from_user.username or 'بدون يوزرنيم'})\n"
         f"• الآيدي: `{message.from_user.id}`\n"
         f"• الباقة: 100 صورة"
     )

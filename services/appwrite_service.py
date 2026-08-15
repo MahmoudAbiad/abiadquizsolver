@@ -15,6 +15,19 @@ client.set_key(settings.APPWRITE_API_KEY)
 
 databases = Databases(client)
 
+
+def _doc_to_dict(doc) -> dict:
+    """
+    نسخة appwrite SDK الحالية (v23+) بترجع كائنات Pydantic (Document / DocumentList)
+    مش قواميس (dict) عادية زي قبل. هاد الفنكشن بيحوّل أي Document لقاموس عادي
+    { "$id": ..., **الحقول } مشان باقي الكود يضل يشتغل بنفس الطريقة اللي كان فيها
+    (tx["user_id"], doc.get("paid_balance"), ...) بدون ما نغيّر كل الهاندلرز.
+    """
+    data = dict(doc.data)
+    data["$id"] = doc.id
+    return data
+
+
 class AppwriteService:
     DB_ID = settings.APPWRITE_DATABASE_ID
     USERS_COL = settings.APPWRITE_USERS_COLLECTION_ID
@@ -29,11 +42,11 @@ class AppwriteService:
                     cls.DB_ID, cls.USERS_COL,
                     queries=[Query.equal("telegram_id", user_id)]
                 )
-                if res["documents"]:
-                    return res["documents"][0]
-                
+                if res.documents:
+                    return _doc_to_dict(res.documents[0])
+
                 # إنشاء مستخدم جديد إن لم يوجد
-                return databases.create_document(
+                new_doc = databases.create_document(
                     database_id=cls.DB_ID,
                     collection_id=cls.USERS_COL,
                     document_id=ID.unique(),
@@ -44,6 +57,7 @@ class AppwriteService:
                         "paid_balance": 0
                     }
                 )
+                return _doc_to_dict(new_doc)
             except Exception as e:
                 logger.error(f"Error in get_or_create_user: {e}")
                 return {}
@@ -57,8 +71,8 @@ class AppwriteService:
                     cls.DB_ID, cls.USERS_COL,
                     queries=[Query.equal("telegram_id", user_id)]
                 )
-                if res["documents"]:
-                    return res["documents"][0].get("paid_balance", 0)
+                if res.documents:
+                    return res.documents[0].data.get("paid_balance", 0)
                 return 0
             except Exception as e:
                 logger.error(f"Error in get_user_balance: {e}")
@@ -73,12 +87,12 @@ class AppwriteService:
                     cls.DB_ID, cls.USERS_COL,
                     queries=[Query.equal("telegram_id", user_id)]
                 )
-                if res["documents"]:
-                    doc = res["documents"][0]
-                    current = doc.get("paid_balance", 0)
+                if res.documents:
+                    doc = res.documents[0]
+                    current = doc.data.get("paid_balance", 0)
                     if current > 0:
                         databases.update_document(
-                            cls.DB_ID, cls.USERS_COL, doc["$id"],
+                            cls.DB_ID, cls.USERS_COL, doc.id,
                             data={"paid_balance": current - 1}
                         )
                         return True
@@ -91,41 +105,46 @@ class AppwriteService:
     @classmethod
     async def create_transaction(cls, user_id: int, receipt_file_id: str, images_credited: int = 100) -> dict:
         def _op():
-            return databases.create_document(
-                database_id=cls.DB_ID,
-                collection_id=cls.TX_COL,
-                document_id=ID.unique(),
-                data={
-                    "user_id": user_id,
-                    "receipt_file_id": receipt_file_id,
-                    "images_credited": images_credited,
-                    "status": "PENDING",
-                    "rejection_reason": ""
-                }
-            )
+            try:
+                new_doc = databases.create_document(
+                    database_id=cls.DB_ID,
+                    collection_id=cls.TX_COL,
+                    document_id=ID.unique(),
+                    data={
+                        "user_id": user_id,
+                        "receipt_file_id": receipt_file_id,
+                        "images_credited": images_credited,
+                        "status": "PENDING",
+                        "rejection_reason": ""
+                    }
+                )
+                return _doc_to_dict(new_doc)
+            except Exception as e:
+                logger.error(f"Error in create_transaction: {e}")
+                return {}
         return await asyncio.to_thread(_op)
 
     @classmethod
     async def approve_transaction(cls, tx_id: str) -> dict | None:
         def _op():
             try:
-                tx = databases.get_document(cls.DB_ID, cls.TX_COL, tx_id)
+                tx = _doc_to_dict(databases.get_document(cls.DB_ID, cls.TX_COL, tx_id))
                 if tx.get("status") != "PENDING":
                     return None
-                
+
                 databases.update_document(cls.DB_ID, cls.TX_COL, tx_id, data={"status": "APPROVED"})
-                
+
                 # جلب وثيقة المستخدم عبر telegram_id وتحديث رصيدها
                 user_id = tx["user_id"]
                 res = databases.list_documents(
                     cls.DB_ID, cls.USERS_COL,
                     queries=[Query.equal("telegram_id", user_id)]
                 )
-                if res["documents"]:
-                    user_doc = res["documents"][0]
-                    new_bal = user_doc.get("paid_balance", 0) + tx.get("images_credited", 100)
-                    databases.update_document(cls.DB_ID, cls.USERS_COL, user_doc["$id"], data={"paid_balance": new_bal})
-                
+                if res.documents:
+                    user_doc = res.documents[0]
+                    new_bal = user_doc.data.get("paid_balance", 0) + tx.get("images_credited", 100)
+                    databases.update_document(cls.DB_ID, cls.USERS_COL, user_doc.id, data={"paid_balance": new_bal})
+
                 return tx
             except Exception as e:
                 logger.error(f"Error in approve_transaction: {e}")
@@ -136,7 +155,7 @@ class AppwriteService:
     async def reject_transaction(cls, tx_id: str, reason: str) -> dict | None:
         def _op():
             try:
-                tx = databases.get_document(cls.DB_ID, cls.TX_COL, tx_id)
+                tx = _doc_to_dict(databases.get_document(cls.DB_ID, cls.TX_COL, tx_id))
                 if tx.get("status") != "PENDING":
                     return None
                 databases.update_document(
