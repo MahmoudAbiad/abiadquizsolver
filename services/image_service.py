@@ -67,5 +67,5 @@ class ImageService:
 
         img = img.convert("RGB")
         output_buffer = io.BytesIO()
-        img.save(output_buffer, format="JPEG", quality=95)
+        img.save(output_buffer, format="JPEG", quality=85)
         return output_buffer.getvalue()
