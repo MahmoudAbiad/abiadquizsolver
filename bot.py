@@ -8,33 +8,33 @@ from handlers import user_handlers, solver_handlers, payment_handlers, admin_han
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-# مسار بسيط لإرضاء سيرفر Render Web Service
 async def handle_ping(request):
-    return web.Response(text="Bot is alive and running!")
+    return web.Response(text="Bot is running perfectly!")
 
 async def start_web_server():
     app = web.Application()
     app.router.add_get("/", handle_ping)
     app.router.add_get("/health", handle_ping)
+    
     runner = web.AppRunner(app)
     await runner.setup()
-    port = int(os.environ.get("PORT", 8080))
+    
+    port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logging.info(f"Web health check server running on port {port}")
+    logging.info(f"✅ Web server successfully bound to port {port}")
 
 async def main():
+    await start_web_server()
+
     bot = Bot(token=settings.BOT_TOKEN)
     dp = Dispatcher()
 
-    # Register Routers
+    # ترتيب الراوترات: الأدمن والدفع أولاً ثم المستخدمين وحل الاختبارات
+    dp.include_router(admin_handlers.router)
+    dp.include_router(payment_handlers.router)
     dp.include_router(user_handlers.router)
     dp.include_router(solver_handlers.router)
-    dp.include_router(payment_handlers.router)
-    dp.include_router(admin_handlers.router)
-
-    # تشغيل خادم الويب والبوت معاً في الخلفية
-    await start_web_server()
 
     logging.info("Bot is connected to Appwrite and ready for exam solving!")
     await bot.delete_webhook(drop_pending_updates=True)

@@ -1,5 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.types import Message, BufferedInputFile
+from aiogram.fsm.state import default_state
 from services.appwrite_service import AppwriteService
 from services.redis_service import RedisService
 from services.ai_service import AIService
@@ -10,12 +11,10 @@ import io
 router = Router()
 
 async def check_and_consume_quota(user_id: int) -> bool:
-    # Check paid balance first
     deducted = await AppwriteService.deduct_balance(user_id)
     if deducted:
         return True
         
-    # Fallback to free daily quota
     free_remaining = await RedisService.get_remaining_free_quota(user_id)
     if free_remaining > 0:
         await RedisService.increment_free_usage(user_id)
@@ -23,7 +22,8 @@ async def check_and_consume_quota(user_id: int) -> bool:
 
     return False
 
-@router.message(F.photo)
+# استقبال الصور فقط في الحالة العادية (Default State)
+@router.message(F.photo, default_state)
 async def handle_photo(message: Message, bot: Bot):
     user_id = message.from_user.id
     
@@ -50,7 +50,7 @@ async def handle_photo(message: Message, bot: Bot):
     finally:
         await status_msg.delete()
 
-@router.message(F.document & (F.document.mime_type == "application/pdf"))
+@router.message(F.document & (F.document.mime_type == "application/pdf"), default_state)
 async def handle_pdf(message: Message, bot: Bot):
     user_id = message.from_user.id
     
