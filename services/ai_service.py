@@ -12,20 +12,24 @@ class SolvedQuestion(BaseModel):
     question_number: int
     correct_option: str
     box_2d: list[int] = Field(
-        description="[ymin, xmin, ymax, xmax] coordinates normalized to 0-1000 for the correct choice letter/circle"
+        description="[ymin, xmin, ymax, xmax] coordinates normalized to 0-1000 for the FULL answer "
+        "option row/line (from the start of the option letter/bullet to the end of the option's "
+        "text), not just the letter or bullet alone"
     )
 
 class ExamSolutionResponse(BaseModel):
     solutions: list[SolvedQuestion]
 
 # قائمة النماذج مرتبة حسب الأولوية (Fallback Cascade)
-# ملاحظة: "gemini-3.7-flash" مش موديل موجود فعلياً عند Google (كان دايماً
-# بيفشل بـ 503 ويطوّل وقت الاستجابة قبل ما يوصل للموديل الشغّال). تم حذفه
-# واستبداله بترتيب موديلات Gemini 3 الفعلية المتوفرة حالياً (آب 2026).
+# تم الاقتصار على الموديلين اللي أكّدتهم Google رسمياً كـ GA (عام، مستقر،
+# جاهز للإنتاج) بآخر سجل تحديثات لهم (آب 2026):
+# https://ai.google.dev/gemini-api/docs/changelog
+# أي موديل تاني (متل gemini-3.7-flash، أو حتى gemini-3.5-flash العادي غير
+# المؤكد حالياً) تم استبعاده عمداً لأنو مش مضمون يشتغل، وبيضيف تأخير فاشل
+# قبل ما يوصل الطلب لموديل شغّال فعلاً.
 FALLBACK_MODELS = [
-    "gemini-3.6-flash",       # النموذج الأساسي (الأحدث والأدق)
-    "gemini-3.5-flash",       # الاحتياطي الأول
-    "gemini-3.5-flash-lite",  # الاحتياطي الثاني (الأرخص والأسرع)
+    "gemini-3.6-flash",       # النموذج الأساسي (الأحدث والأدق، GA رسمي)
+    "gemini-3.5-flash-lite",  # الاحتياطي (أرخص وأسرع، GA رسمي أيضاً)
 ]
 
 class AIService:
@@ -35,7 +39,9 @@ class AIService:
             "Analyze this multiple-choice exam page. For every question present:\n"
             "1. Determine the single correct answer based on high academic accuracy.\n"
             "2. Identify the exact bounding box [ymin, xmin, ymax, xmax] (normalized to 1000) "
-            "covering the correct choice circle, bullet, or option letter (e.g. A, B, C, D)."
+            "covering the ENTIRE correct answer option's row - starting from the option's "
+            "letter/bullet (e.g. A, B, C, D) and extending to include the full text of that "
+            "option, not just the letter or bullet by itself."
         )
 
         last_exception = None
@@ -51,10 +57,13 @@ class AIService:
                         types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
                         prompt
                     ],
+                    # ملاحظة: بدءاً من gemini-3.6-flash و gemini-3.5-flash-lite،
+                    # صارت Google تعتبر temperature/top_p/top_k معطّلة (deprecated)
+                    # وبتتجاهلها حالياً، وبأجيال قادمة رح ترجع خطأ إذا انبعتت.
+                    # فتم حذفها من هون مشان الكود ما ينكسر بترقية موديل مستقبلية.
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=ExamSolutionResponse,
-                        temperature=0.1,
                     ),
                 )
                 

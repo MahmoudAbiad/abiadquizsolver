@@ -44,7 +44,14 @@ async def handle_photo(message: Message, bot: Bot):
         annotated_bytes = ImageService.annotate_image(img_bytes, solutions)
 
         output_file = BufferedInputFile(annotated_bytes, filename="solved_exam.jpg")
-        await message.reply_photo(photo=output_file, caption=f"✅ تم الحل بنجاح! تم تحديد {len(solutions)} سؤال.")
+        await message.reply_photo(
+            photo=output_file,
+            caption=(
+                f"✅ تم الحل بنجاح! تم تحديد {len(solutions)} سؤال.\n\n"
+                "⚠️ هذا حل تلقائي بالذكاء الاصطناعي وقد يحتوي على أخطاء، "
+                "خصوصاً بالمواد الصعبة أو الأسئلة الملتبسة. يُرجى مراجعة الإجابات قبل اعتمادها."
+            )
+        )
     except Exception as e:
         await message.answer(f"❌ حدث خطأ أثناء المعالجة: {str(e)}")
     finally:
@@ -68,7 +75,14 @@ async def handle_pdf(message: Message, bot: Bot):
 
         solved_pdf = await PDFService.process_pdf(pdf_bytes)
         output_file = BufferedInputFile(solved_pdf, filename="solved_exam.pdf")
-        await message.reply_document(document=output_file, caption="✅ تم حل جميع صفحات الملف بنجاح!")
+        await message.reply_document(
+            document=output_file,
+            caption=(
+                "✅ تم حل جميع صفحات الملف بنجاح!\n\n"
+                "⚠️ هذا حل تلقائي بالذكاء الاصطناعي وقد يحتوي على أخطاء، "
+                "خصوصاً بالمواد الصعبة أو الأسئلة الملتبسة. يُرجى مراجعة الإجابات قبل اعتمادها."
+            )
+        )
     except Exception as e:
         await message.answer(f"❌ حدث خطأ أثناء معالجة الملف: {str(e)}")
     finally:
