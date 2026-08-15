@@ -18,7 +18,7 @@ class PDFService:
     async def process_pdf(pdf_bytes: bytes) -> bytes:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-        if len(doc) > 10:
+        if len(doc) > 15:
             doc.close()
             raise ValueError("الحد الأقصى للملف هو 10 صفحات في المرة الواحدة.")
 
