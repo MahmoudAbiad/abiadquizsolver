@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     APPWRITE_DATABASE_ID: str = "main_db"
     APPWRITE_USERS_COLLECTION_ID: str = "users"
     APPWRITE_TX_COLLECTION_ID: str = "transactions"
+    # كولكشن سجل نشاطات المستخدمين (خاص بلوحة الإدمن الخاصة)
+    APPWRITE_LOGS_COLLECTION_ID: str = "activity_logs"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

@@ -4,7 +4,8 @@ import os
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from config.settings import settings
-from handlers import user_handlers, solver_handlers, payment_handlers, admin_handlers
+from handlers import user_handlers, solver_handlers, payment_handlers, admin_handlers, admin_activity_handlers
+from middlewares.activity_middleware import IncomingActivityMiddleware, outgoing_file_log_middleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
@@ -30,7 +31,15 @@ async def main():
     bot = Bot(token=settings.BOT_TOKEN)
     dp = Dispatcher()
 
-    # ترتيب الراوترات: الأدمن والدفع أولاً ثم المستخدمين وحل الاختبارات
+    # تسجيل نشاطات المستخدمين الواردة (أزرار، صور، ملفات، أخطاء) + الملفات
+    # الصادرة من البوت (اللي البوت بيسلمها للمستخدم)، مشان لوحة الإدمن الخاصة
+    incoming_logger = IncomingActivityMiddleware()
+    dp.message.outer_middleware(incoming_logger)
+    dp.callback_query.outer_middleware(incoming_logger)
+    bot.session.middleware(outgoing_file_log_middleware)
+
+    # ترتيب الراوترات: لوحة الإدمن الخاصة أولاً، ثم الأدمن والدفع، ثم المستخدمين وحل الاختبارات
+    dp.include_router(admin_activity_handlers.router)
     dp.include_router(admin_handlers.router)
     dp.include_router(payment_handlers.router)
     dp.include_router(user_handlers.router)

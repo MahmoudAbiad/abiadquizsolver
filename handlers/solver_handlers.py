@@ -7,7 +7,9 @@ from services.ai_service import AIService, get_num_keys
 from services.gemini_quota_service import GeminiQuotaService
 from services.image_service import ImageService
 from services.pdf_service import PDFService
+from services.activity_service import ActivityService
 import io
+import traceback
 
 router = Router()
 
@@ -61,6 +63,14 @@ async def handle_photo(message: Message, bot: Bot):
         )
     except Exception as e:
         await message.answer(f"❌ حدث خطأ أثناء المعالجة: {str(e)}")
+        await ActivityService.log_event(
+            user_id=user_id,
+            event_type="error",
+            full_name=message.from_user.full_name or "",
+            username=message.from_user.username or "",
+            details=f"خطأ أثناء حل صورة: {str(e)}"[:500],
+            error_trace=traceback.format_exc(),
+        )
     finally:
         await status_msg.delete()
 
@@ -101,5 +111,13 @@ async def handle_pdf(message: Message, bot: Bot):
         )
     except Exception as e:
         await message.answer(f"❌ حدث خطأ أثناء معالجة الملف: {str(e)}")
+        await ActivityService.log_event(
+            user_id=user_id,
+            event_type="error",
+            full_name=message.from_user.full_name or "",
+            username=message.from_user.username or "",
+            details=f"خطأ أثناء حل PDF: {str(e)}"[:500],
+            error_trace=traceback.format_exc(),
+        )
     finally:
         await status_msg.delete()
