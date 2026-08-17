@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     REDIS_URL: str
     SHAM_CASH_ACCOUNT: str
     SHAM_CASH_QR_URL: str = ""
-    FREE_DAILY_LIMIT: int = 3
+    FREE_DAILY_LIMIT: int = 10
     PAID_PACKAGE_AMOUNT: int = 100
 
     # Appwrite Settings
