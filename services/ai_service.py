@@ -40,6 +40,12 @@ class SolvedQuestion(BaseModel):
         "in the order the images were provided in this request",
     )
     question_number: int
+    reasoning: str = Field(
+        description="Brief step-by-step reasoning (1-3 sentences) explaining WHY this option "
+        "is correct, based on the specific academic subject/terminology shown on the page, "
+        "written BEFORE deciding on correct_option. Consider and rule out the other options "
+        "explicitly if the question is ambiguous or the terminology is highly specialized."
+    )
     correct_option: str
     box_2d: list[int] = Field(
         description="[ymin, xmin, ymax, xmax] coordinates normalized to 0-1000, RELATIVE TO "
@@ -51,29 +57,41 @@ class SolvedQuestion(BaseModel):
 class ExamSolutionResponse(BaseModel):
     solutions: list[SolvedQuestion]
 
-# حوض النماذج المتاحة. كل مفتاح Gemini بياخد نموذج مختلف (توزيع دوري)
-# بدل ما كل المفاتيح تستخدم نفس النموذج، مشان نوزّع الحمل على كوتا كل
-# نموذج لحاله (كل نموذج عنده RPD منفصل بغوغل) ونستفيد من أكبر كوتا يومية
-# ممكنة إجمالاً بدل ما نصطدم بسقف نموذج واحد بسرعة.
+# حوض النماذج المتاحة. gemini-3.1-pro-preview هو الأقوى بالاستدلال
+# (reasoning) وهو المفروض يكون الخيار الأساسي دايماً لأن حل امتحانات
+# فعلية (مش قراءة مفتاح إجابات جاهز) بيحتاج دقة أكاديمية عالية، خصوصاً
+# بمواد متخصصة. باقي الموديلات (flash) موجودة بس كخط احتياط لو الـ Pro
+# فشل أو خلصت كوتته اليومية، مشان البوت يضل شغال حتى لو بدقة أقل.
 MODEL_POOL = [
-    "gemini-3.5-flash",
+    "gemini-3.1-pro-preview",
     "gemini-3.6-flash",
-    "gemini-3-flash",
+    "gemini-3.5-flash",
 ]
+
+# مستوى التفكير (thinking) لكل موديل. الموديلات القوية (Pro) لازم أعلى
+# مستوى تفكير ممكن لأن هاد أهم عامل بيرفع دقتها بأسئلة متخصصة. flash
+# منخليها HIGH كمان لأنها هي خط الدفاع الثاني وبنفس الوقت رح تحل محل
+# الـ Pro بحال فشل، فمنفضل الدقة على السرعة بكل الحالات هون.
+_THINKING_LEVEL = types.ThinkingLevel.HIGH
 
 
 def _fallback_chain_for_key(key_index: int) -> list[str]:
-    """بترجع ترتيب النماذج المستخدمة لهالمفتاح بالذات: تبلش بالنموذج
-    المخصص إله (حسب توزيع دوري على MODEL_POOL)، وإذا فشل (خطأ، كوتا
-    نفدت...) بتجرب باقي النماذج بنفس المفتاح كاحتياط، بدل ما يفشل الطلب
-    كلياً."""
-    primary_idx = key_index % len(MODEL_POOL)
-    return [MODEL_POOL[primary_idx]] + [m for i, m in enumerate(MODEL_POOL) if i != primary_idx]
+    """بترجع ترتيب النماذج المستخدمة لهالمفتاح بالذات: تبلش دايماً
+    بـ gemini-3.1-pro-preview (الأدق)، وإذا فشل (خطأ، كوتا نفدت...)
+    بتنزل تدريجياً لموديلات flash كاحتياط، بدل ما يفشل الطلب كلياً."""
+    return MODEL_POOL
 
 _SINGLE_PROMPT = (
-    "Analyze this multiple-choice exam page. For every question present:\n"
-    "1. Determine the single correct answer based on high academic accuracy.\n"
-    "2. Identify the exact bounding box [ymin, xmin, ymax, xmax] (normalized to 1000) "
+    "Analyze this multiple-choice exam page. It is a real, unanswered exam (no answers are "
+    "pre-marked) — you must solve it yourself with high academic rigor. The subject may be "
+    "highly specialized (e.g. medicine, anatomy, kinesiology) and written in Arabic; do not "
+    "guess from surface-level familiarity with a term — reason carefully about the specific "
+    "academic definition being tested. For every question present:\n"
+    "1. First think step-by-step (in the `reasoning` field) about what the question is "
+    "precisely testing, and briefly evaluate why the other options are wrong before settling "
+    "on an answer.\n"
+    "2. Determine the single correct answer based on that reasoning.\n"
+    "3. Identify the exact bounding box [ymin, xmin, ymax, xmax] (normalized to 1000) "
     "covering the ENTIRE correct answer option's row - starting from the option's "
     "letter/bullet (e.g. A, B, C, D) and extending to include the full text of that "
     "option, not just the letter or bullet by itself."
@@ -82,13 +100,19 @@ _SINGLE_PROMPT = (
 
 def _batch_prompt(num_images: int) -> str:
     return (
-        f"You will receive {num_images} images, each a separate page of a multiple-choice "
-        "exam, given in order starting at index 0 (first image = page_index 0, second image = "
-        "page_index 1, and so on). Analyze EACH image independently and completely — do not "
-        "skip any image. For every question found on ANY of the images:\n"
-        "1. Determine the single correct answer based on high academic accuracy.\n"
-        "2. Set page_index to the 0-based index of the image that question appears on.\n"
-        "3. Identify the exact bounding box [ymin, xmin, ymax, xmax] (normalized to 1000, "
+        f"You will receive {num_images} images, each a separate page of a real, unanswered "
+        "multiple-choice exam (no answers are pre-marked), given in order starting at index 0 "
+        "(first image = page_index 0, second image = page_index 1, and so on). The subject may "
+        "be highly specialized (e.g. medicine, anatomy, kinesiology) and written in Arabic; do "
+        "not guess from surface-level familiarity with a term — reason carefully about the "
+        "specific academic definition being tested. Analyze EACH image independently and "
+        "completely — do not skip any image. For every question found on ANY of the images:\n"
+        "1. First think step-by-step (in the `reasoning` field) about what the question is "
+        "precisely testing, and briefly evaluate why the other options are wrong before "
+        "settling on an answer.\n"
+        "2. Determine the single correct answer based on that reasoning.\n"
+        "3. Set page_index to the 0-based index of the image that question appears on.\n"
+        "4. Identify the exact bounding box [ymin, xmin, ymax, xmax] (normalized to 1000, "
         "relative to THAT SPECIFIC image's own width/height, not the combined set) covering "
         "the ENTIRE correct answer option's row - starting from the option's letter/bullet "
         "(e.g. A, B, C, D) and extending to include the full text of that option, not just "
@@ -115,6 +139,10 @@ async def _call_gemini(contents: list, key_index: int, client: genai.Client) -> 
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=ExamSolutionResponse,
+                    # HIGH مشان نعطي الموديل أقصى مساحة تفكير ممكنة قبل
+                    # ما يحسم الجواب - أهم عامل واحد بيرفع دقة حل أسئلة
+                    # أكاديمية متخصصة (خصوصاً بالطب/التشريح بالعربي).
+                    thinking_config=types.ThinkingConfig(thinking_level=_THINKING_LEVEL),
                 ),
             )
 
