@@ -1,6 +1,7 @@
 from aiogram import Router, F, Bot
 from aiogram.types import Message, BufferedInputFile
 from aiogram.fsm.state import default_state
+from config.settings import settings
 from services.appwrite_service import AppwriteService
 from services.redis_service import RedisService
 from services.ai_service import AIService, get_num_keys
@@ -38,7 +39,10 @@ async def handle_photo(message: Message, bot: Bot):
 
     has_quota = await check_and_consume_quota(user_id)
     if not has_quota:
-        await message.answer("⚠️ لقد استهلكت رصيدك المجاني لليوم (3 صور). يرجى شحن الرصيد للمتابعة 💳.")
+        await message.answer(
+            f"⚠️ لقد استهلكت رصيدك المجاني لليوم ({settings.FREE_DAILY_LIMIT} محاولات). "
+            "يرجى شحن الرصيد للمتابعة 💳."
+        )
         return
 
     status_msg = await message.answer("⏳ جاري تحليل الأسئلة ووضع الإجابات الصحيحة...")
@@ -80,7 +84,10 @@ async def handle_pdf(message: Message, bot: Bot):
     
     has_quota = await check_and_consume_quota(user_id)
     if not has_quota:
-        await message.answer("⚠️ لقد استهلكت رصيدك المتاح. يرجى شحن رصيدك للمتابعة 💳.")
+        await message.answer(
+            f"⚠️ لقد استهلكت رصيدك المجاني لليوم ({settings.FREE_DAILY_LIMIT} محاولات). "
+            "يرجى شحن الرصيد للمتابعة 💳."
+        )
         return
 
     status_msg = await message.answer("⏳ جاري قراءة ملف الـ PDF وحل صفحاته...")

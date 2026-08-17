@@ -36,7 +36,7 @@ async def process_receipt(message: Message, bot: Bot, state: FSMContext):
         f"🔔 **طلب شحن رصيد جديد (#{tx_id})**\n\n"
         f"• المستخدم: {message.from_user.full_name} (@{message.from_user.username or 'بدون يوزرنيم'})\n"
         f"• الآيدي: `{message.from_user.id}`\n"
-        f"• الباقة: 100 صورة"
+        f"• الباقة: 10 صورة"
     )
     
     await bot.send_photo(
