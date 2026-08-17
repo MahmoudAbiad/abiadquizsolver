@@ -51,17 +51,24 @@ class SolvedQuestion(BaseModel):
 class ExamSolutionResponse(BaseModel):
     solutions: list[SolvedQuestion]
 
-# قائمة النماذج مرتبة حسب الأولوية (Fallback Cascade)
-# تم الاقتصار على الموديلين اللي أكّدتهم Google رسمياً كـ GA (عام، مستقر،
-# جاهز للإنتاج) بآخر سجل تحديثات لهم (آب 2026):
-# https://ai.google.dev/gemini-api/docs/changelog
-# أي موديل تاني (متل gemini-3.7-flash، أو حتى gemini-3.5-flash العادي غير
-# المؤكد حالياً) تم استبعاده عمداً لأنو مش مضمون يشتغل، وبيضيف تأخير فاشل
-# قبل ما يوصل الطلب لموديل شغّال فعلاً.
-FALLBACK_MODELS = [
-    "gemini-3.6-flash",       # النموذج الأساسي (الأحدث والأدق، GA رسمي)
-    "gemini-3.5-flash-lite",  # الاحتياطي (أرخص وأسرع، GA رسمي أيضاً)
+# حوض النماذج المتاحة. كل مفتاح Gemini بياخد نموذج مختلف (توزيع دوري)
+# بدل ما كل المفاتيح تستخدم نفس النموذج، مشان نوزّع الحمل على كوتا كل
+# نموذج لحاله (كل نموذج عنده RPD منفصل بغوغل) ونستفيد من أكبر كوتا يومية
+# ممكنة إجمالاً بدل ما نصطدم بسقف نموذج واحد بسرعة.
+MODEL_POOL = [
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3-flash",
 ]
+
+
+def _fallback_chain_for_key(key_index: int) -> list[str]:
+    """بترجع ترتيب النماذج المستخدمة لهالمفتاح بالذات: تبلش بالنموذج
+    المخصص إله (حسب توزيع دوري على MODEL_POOL)، وإذا فشل (خطأ، كوتا
+    نفدت...) بتجرب باقي النماذج بنفس المفتاح كاحتياط، بدل ما يفشل الطلب
+    كلياً."""
+    primary_idx = key_index % len(MODEL_POOL)
+    return [MODEL_POOL[primary_idx]] + [m for i, m in enumerate(MODEL_POOL) if i != primary_idx]
 
 _SINGLE_PROMPT = (
     "Analyze this multiple-choice exam page. For every question present:\n"
@@ -91,7 +98,7 @@ def _batch_prompt(num_images: int) -> str:
 
 async def _call_gemini(contents: list, key_index: int, client: genai.Client) -> ExamSolutionResponse:
     last_exception = None
-    for model_name in FALLBACK_MODELS:
+    for model_name in _fallback_chain_for_key(key_index):
         try:
             logger.info(f"Attempting to solve with model: {model_name} (key #{key_index})")
             # نسجّل استهلاك الكوتا لهالمفتاح قبل الإرسال مباشرة، لأن غوغل
