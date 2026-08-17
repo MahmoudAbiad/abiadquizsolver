@@ -2,7 +2,6 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, BufferedInputFile
 from aiogram.fsm.state import default_state
 from config.settings import settings
-from services.appwrite_service import AppwriteService
 from services.redis_service import RedisService
 from services.ai_service import AIService, get_num_keys
 from services.gemini_quota_service import GeminiQuotaService
@@ -15,10 +14,6 @@ import traceback
 router = Router()
 
 async def check_and_consume_quota(user_id: int) -> bool:
-    deducted = await AppwriteService.deduct_balance(user_id)
-    if deducted:
-        return True
-        
     free_remaining = await RedisService.get_remaining_free_quota(user_id)
     if free_remaining > 0:
         await RedisService.increment_free_usage(user_id)
@@ -41,7 +36,7 @@ async def handle_photo(message: Message, bot: Bot):
     if not has_quota:
         await message.answer(
             f"⚠️ لقد استهلكت رصيدك المجاني لليوم ({settings.FREE_DAILY_LIMIT} محاولات). "
-            "يرجى شحن الرصيد للمتابعة 💳."
+            "يرجى الانتظار حتى الغد، حيث يتجدد رصيدك المجاني تلقائياً كل يوم 🌙."
         )
         return
 
@@ -86,7 +81,7 @@ async def handle_pdf(message: Message, bot: Bot):
     if not has_quota:
         await message.answer(
             f"⚠️ لقد استهلكت رصيدك المجاني لليوم ({settings.FREE_DAILY_LIMIT} محاولات). "
-            "يرجى شحن الرصيد للمتابعة 💳."
+            "يرجى الانتظار حتى الغد، حيث يتجدد رصيدك المجاني تلقائياً كل يوم 🌙."
         )
         return
 

@@ -10,11 +10,8 @@ class Settings(BaseSettings):
     # فيه أكتر من صفحة بالتوازي. مثال: KEY_1,KEY_2,KEY_3
     GEMINI_API_KEYS: str = ""
     REDIS_URL: str
-    SHAM_CASH_ACCOUNT: str
-    SHAM_CASH_QR_URL: str = ""
     # عدد الصور المجانية المسموح بها يومياً
     FREE_DAILY_LIMIT: int = 10
-    PAID_PACKAGE_AMOUNT: int = 10
     # أقصى عدد صفحات مسموح بالملف الواحد
     MAX_PDF_PAGES: int = 60
     # حد الـ RPD (طلبات باليوم) لكل مفتاح Gemini على الخطة المجانية.
@@ -31,7 +28,6 @@ class Settings(BaseSettings):
     APPWRITE_API_KEY: str
     APPWRITE_DATABASE_ID: str = "main_db"
     APPWRITE_USERS_COLLECTION_ID: str = "users"
-    APPWRITE_TX_COLLECTION_ID: str = "transactions"
     # كولكشن سجل نشاطات المستخدمين (خاص بلوحة الإدمن الخاصة)
     APPWRITE_LOGS_COLLECTION_ID: str = "activity_logs"
 

@@ -4,7 +4,7 @@ import os
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from config.settings import settings
-from handlers import user_handlers, solver_handlers, payment_handlers, admin_handlers, admin_activity_handlers
+from handlers import user_handlers, solver_handlers, admin_activity_handlers
 from middlewares.activity_middleware import IncomingActivityMiddleware, outgoing_file_log_middleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -38,10 +38,8 @@ async def main():
     dp.callback_query.outer_middleware(incoming_logger)
     bot.session.middleware(outgoing_file_log_middleware)
 
-    # ترتيب الراوترات: لوحة الإدمن الخاصة أولاً، ثم الأدمن والدفع، ثم المستخدمين وحل الاختبارات
+    # ترتيب الراوترات: لوحة الإدمن الخاصة أولاً، ثم المستخدمين وحل الاختبارات
     dp.include_router(admin_activity_handlers.router)
-    dp.include_router(admin_handlers.router)
-    dp.include_router(payment_handlers.router)
     dp.include_router(user_handlers.router)
     dp.include_router(solver_handlers.router)
 

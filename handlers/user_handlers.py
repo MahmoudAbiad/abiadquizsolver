@@ -1,10 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import CommandStart, Command
-from keyboards.keyboards import get_main_keyboard, get_buy_keyboard
+from keyboards.keyboards import get_main_keyboard
 from services.appwrite_service import AppwriteService
 from services.redis_service import RedisService
-from config.settings import settings
 
 router = Router()
 
@@ -28,14 +27,12 @@ async def cmd_start(message: Message):
 @router.message(Command("balance"))
 async def show_balance(message: Message):
     user_id = message.from_user.id
-    paid = await AppwriteService.get_user_balance(user_id)
     free_left = await RedisService.get_remaining_free_quota(user_id)
 
     msg = (
         f"📊 **تفاصيل حسابك:**\n\n"
-        f"• الرصيد المجاني المتبقي لليوم: **{free_left} صور**\n"
-        f"• الرصيد المدفوع الدائم: **{paid} صورة**\n\n"
-        "💡 عند إرسال أي صورة، يتم استهلاك الرصيد المدفوع أولاً ثم المجاني."
+        f"• الرصيد المجاني المتبقي لليوم: **{free_left} صور**\n\n"
+        "💡 يتجدد رصيدك المجاني تلقائياً كل يوم."
     )
     await message.answer(msg, parse_mode="Markdown")
 
@@ -46,20 +43,6 @@ async def show_help(message: Message):
         "1. تأكد من أن صورة الأسئلة واضحة ومقروءة بشكل جيد.\n"
         "2. البوت مخصص حصراً للأسئلة المؤتمتة (اختيار من متعدد MCQ).\n"
         "3. يمكنك إرسال ملفات PDF حتى 10 صفحات وسيعالجها صفحة صفحة.\n"
-        "4. للشحن، اضغط على زر '💳 شحن رصيد' واتبع التعليمات."
+        "4. لديك رصيد مجاني يومي يتجدد تلقائياً كل يوم."
     )
     await message.answer(help_text, parse_mode="Markdown")
-
-@router.message(F.text == "💳 شحن رصيد")
-async def buy_balance(message: Message):
-    text = (
-        f"💳 **شحن رصيد البوت عبر شام كاش**\n\n"
-        f"• ملف\الباقة: **10 صورة**\n"
-        f"• السعر: **0.1$** (أو ما يعادله بالليرة السورية)\n"
-        f"• رقم حساب شام كاش: `{settings.SHAM_CASH_ACCOUNT}`\n\n"
-        "قم بالتحويل للحساب أعلاه، ثم اضغط على الزر أدناه لإرسال لقطة شاشة إشعار الدفع."
-    )
-    if settings.SHAM_CASH_QR_URL:
-        await message.answer_photo(photo=settings.SHAM_CASH_QR_URL, caption=text, parse_mode="Markdown", reply_markup=get_buy_keyboard())
-    else:
-        await message.answer(text, parse_mode="Markdown", reply_markup=get_buy_keyboard())
