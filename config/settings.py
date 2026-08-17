@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     SHAM_CASH_QR_URL: str = ""
     # عدد الصور المجانية المسموح بها يومياً
     FREE_DAILY_LIMIT: int = 10
-    PAID_PACKAGE_AMOUNT: int = 100
+    PAID_PACKAGE_AMOUNT: int = 10
     # أقصى عدد صفحات مسموح بالملف الواحد
     MAX_PDF_PAGES: int = 60
     # حد الـ RPD (طلبات باليوم) لكل مفتاح Gemini على الخطة المجانية.

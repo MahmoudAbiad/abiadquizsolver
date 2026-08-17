@@ -24,7 +24,7 @@ async def process_receipt(message: Message, bot: Bot, state: FSMContext):
     tx = await AppwriteService.create_transaction(
         user_id=message.from_user.id,
         receipt_file_id=photo.file_id,
-        images_credited=100
+        images_credited=10
     )
     if not tx.get("$id"):
         await message.answer("❌ حدث خطأ أثناء تسجيل طلب الشحن، حاول مرة أخرى بعد قليل.")
