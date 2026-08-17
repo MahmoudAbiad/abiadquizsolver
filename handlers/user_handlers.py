@@ -20,7 +20,7 @@ async def cmd_start(message: Message):
     welcome_text = (
         f"أهلاً بك يا {message.from_user.first_name} في بوت حل الأسئلة المؤتمتة 🎓\n\n"
         "أرسل لي صورة امتحان أو ملف PDF مؤتمت، وسأقوم بوضع علامة خضراء فوراً على الإجابات الصحيحة!\n\n"
-        "🎁 لديك 3 صور مجانية يومياً تتجدد تلقائياً."
+        "🎁 لديك 10 صور او ملفات مجانية يومياً تتجدد تلقائياً."
     )
     await message.answer(welcome_text, reply_markup=get_main_keyboard())
 
