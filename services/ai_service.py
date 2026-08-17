@@ -83,10 +83,12 @@ def _fallback_chain_for_key(key_index: int) -> list[str]:
 
 _SINGLE_PROMPT = (
     "Analyze this multiple-choice exam page. It is a real, unanswered exam (no answers are "
-    "pre-marked) — you must solve it yourself with high academic rigor. The subject may be "
-    "highly specialized (e.g. medicine, anatomy, kinesiology) and written in Arabic; do not "
-    "guess from surface-level familiarity with a term — reason carefully about the specific "
-    "academic definition being tested. For every question present:\n"
+    "pre-marked) — you must solve it yourself with high academic rigor. First identify the "
+    "specific subject/field being tested (it could be any field — medicine, engineering, law, "
+    "history, languages, etc. — and may be written in Arabic or another language) and apply "
+    "that field's precise terminology and conventions; do not guess from surface-level or "
+    "generic familiarity with a term — reason carefully about the specific definition being "
+    "tested within that subject. For every question present:\n"
     "1. First think step-by-step (in the `reasoning` field) about what the question is "
     "precisely testing, and briefly evaluate why the other options are wrong before settling "
     "on an answer.\n"
@@ -102,11 +104,14 @@ def _batch_prompt(num_images: int) -> str:
     return (
         f"You will receive {num_images} images, each a separate page of a real, unanswered "
         "multiple-choice exam (no answers are pre-marked), given in order starting at index 0 "
-        "(first image = page_index 0, second image = page_index 1, and so on). The subject may "
-        "be highly specialized (e.g. medicine, anatomy, kinesiology) and written in Arabic; do "
-        "not guess from surface-level familiarity with a term — reason carefully about the "
-        "specific academic definition being tested. Analyze EACH image independently and "
-        "completely — do not skip any image. For every question found on ANY of the images:\n"
+        "(first image = page_index 0, second image = page_index 1, and so on). First identify "
+        "the specific subject/field being tested on each page (it could be any field — "
+        "medicine, engineering, law, history, languages, etc. — and may be written in Arabic "
+        "or another language) and apply that field's precise terminology and conventions; do "
+        "not guess from surface-level or generic familiarity with a term — reason carefully "
+        "about the specific definition being tested within that subject. Analyze EACH image "
+        "independently and completely — do not skip any image. For every question found on "
+        "ANY of the images:\n"
         "1. First think step-by-step (in the `reasoning` field) about what the question is "
         "precisely testing, and briefly evaluate why the other options are wrong before "
         "settling on an answer.\n"
@@ -141,7 +146,7 @@ async def _call_gemini(contents: list, key_index: int, client: genai.Client) -> 
                     response_schema=ExamSolutionResponse,
                     # HIGH مشان نعطي الموديل أقصى مساحة تفكير ممكنة قبل
                     # ما يحسم الجواب - أهم عامل واحد بيرفع دقة حل أسئلة
-                    # أكاديمية متخصصة (خصوصاً بالطب/التشريح بالعربي).
+                    # أكاديمية متخصصة، أياً كانت المادة (طب، هندسة، حقوق...).
                     thinking_config=types.ThinkingConfig(thinking_level=_THINKING_LEVEL),
                 ),
             )
